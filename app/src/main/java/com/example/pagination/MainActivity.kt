@@ -2,6 +2,7 @@ package com.example.pagination
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.os.Handler
 import android.view.View
 import android.widget.Toast
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -35,12 +36,12 @@ class MainActivity : AppCompatActivity(), SwipeRefreshLayout.OnRefreshListener {
                 override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                     val visibleItemCount = (layoutManager as LinearLayoutManager).childCount
                     val pastVisibleItem =
-                        (layoutManager as LinearLayoutManager).findFirstVisibleItemPosition()
+                        (layoutManager as LinearLayoutManager).findFirstCompletelyVisibleItemPosition()
                     val total = (adapter as Adapter).itemCount
                     if (!isLoading && page < totalPage) {
                         if (visibleItemCount + pastVisibleItem >= total) {
                             page++
-                            getUsers(false)
+                            getUsers()
                         }
                     }
                     super.onScrolled(recyclerView, dx, dy)
@@ -49,46 +50,46 @@ class MainActivity : AppCompatActivity(), SwipeRefreshLayout.OnRefreshListener {
         }
         binding.swipeRefresh.setOnRefreshListener(this)
 
-        getUsers(false)
+        getUsers()
     }
 
-    private fun getUsers(isOnRefresh: Boolean) {
+    private fun getUsers() {
         isLoading = true
-        if (!isOnRefresh) {
-            binding.progressBar.visibility = View.VISIBLE
-            val parameters = HashMap<String, String>()
-            parameters["page"] = page.toString()
-            RetrofitClient.instance.getUsers(parameters).enqueue(object : Callback<UsersResponses> {
-                override fun onResponse(
-                    call: Call<UsersResponses>,
-                    response: Response<UsersResponses>
-                ) {
-                    totalPage = response.body()?.total_pages!!
-                    val listResponse = response.body()?.data
-                    if (listResponse != null) {
-                        usersAdapter.addList(listResponse)
-                    }
-                    binding.progressBar.visibility = View.VISIBLE
-                    isLoading = false
-                    binding.swipeRefresh.isRefreshing = false
-                    if(page == totalPage){
-                        binding.progressBar.visibility = View.GONE
-                    }else{
-                        binding.progressBar.visibility = View.INVISIBLE
-                    }
-                }
+        binding.progressBar.visibility = View.VISIBLE
+       Handler().postDelayed({
+           val parameters = HashMap<String, String>()
+           parameters["page"] = page.toString()
+           RetrofitClient.instance.getUsers(parameters).enqueue(object : Callback<UsersResponses> {
+               override fun onResponse(
+                   call: Call<UsersResponses>,
+                   response: Response<UsersResponses>
+               ) {
+                   totalPage = response.body()?.total_pages!!
+                   val listResponse = response.body()?.data
+                   if (listResponse != null) {
+                       usersAdapter.addList(listResponse)
+                   }
+                   binding.progressBar.visibility = View.VISIBLE
+                   isLoading = false
+                   binding.swipeRefresh.isRefreshing = false
+                   if (page == totalPage) {
+                       binding.progressBar.visibility = View.GONE
+                   } else {
+                       binding.progressBar.visibility = View.INVISIBLE
+                   }
+               }
 
-                override fun onFailure(call: Call<UsersResponses>, t: Throwable) {
-                    Toast.makeText(this@MainActivity, "${t.message}", Toast.LENGTH_SHORT).show()
-                }
+               override fun onFailure(call: Call<UsersResponses>, t: Throwable) {
+                   Toast.makeText(this@MainActivity, "${t.message}", Toast.LENGTH_SHORT).show()
+               }
 
-            })
-        }
+           })
+       },3000)
     }
 
     override fun onRefresh() {
         usersAdapter.clear()
         page = 1
-        getUsers(false)
+        getUsers()
     }
 }
